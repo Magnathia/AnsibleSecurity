@@ -1,0 +1,32 @@
+---
+- hosts: macos
+  gather_facts: no
+  tasks:
+    - name: Ensure necessary packages are installed
+      homebrew:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - python3
+        - ansible
+
+    - name: Ensure unnecessary services are stopped
+      command: launchctl unload -w /System/Library/LaunchDaemons/{{ item }}.plist
+      ignore_errors: yes
+      loop:
+        - com.apple.AirPlayXPCHelper
+        - com.apple.mDNSResponderHelper
+        - com.apple.SubmitDiagInfo
+
+    - name: Ensure Firewall is enabled
+      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+
+    - name: Ensure Gatekeeper is enabled
+      command: spctl --master-enable
+
+    - name: Ensure FileVault is enabled
+      command: fdesetup enable
+
+    - name: Ensure password policy is set
+      command: pwpolicy -clearaccountpolicies
+...

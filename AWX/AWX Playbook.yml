@@ -1,0 +1,55 @@
+---
+- hosts: k8s_cluster
+  become: yes
+  tasks:
+    - name: Install necessary dependencies
+      yum:
+        name: ['python3', 'python3-pip', 'epel-release', 'ansible', 'net-tools', 'bind-utils', 'wget', 'yum-utils', 'device-mapper-persistent-data', 'lvm2']
+        state: present
+
+    - name: Add Kubernetes repository
+      get_url:
+        url: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+        dest: /etc/yum.repos.d/kubernetes.repo
+        mode: '0644'
+
+    - name: Install Kubernetes
+      yum:
+        name: ['kubelet', 'kubeadm', 'kubectl']
+        state: present
+      notify: Start kubelet
+
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+    - name: Clone AWX repository
+      git:
+        repo: 'https://github.com/ansible/awx.git'
+        dest: '/opt/awx'
+        version: 'devel'
+
+    - name: Install AWX Operator
+      shell: |
+        kubectl apply -f /opt/awx/awx-operator/deploy/awx-operator.yaml
+
+    - name: Create AWX instance
+      shell: |
+        kubectl apply -f /opt/awx/awx-operator/deploy/awx-demo.yaml
+
+    - name: Open necessary firewall ports
+      firewalld:
+        service: '{{ item }}'
+        permanent: true
+        state: enabled
+      with_items:
+        - http
+        - https
+
+  handlers:
+    - name: Start kubelet
+      systemd:
+        name: kubelet
+        state: started
+        enabled: yes
+...

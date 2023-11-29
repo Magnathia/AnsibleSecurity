@@ -1,0 +1,49 @@
+---
+- hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Ensure Windows Firewall is enabled
+      win_shell: Enable-NetFirewallRule -DisplayGroup "Windows Firewall Remote Management"
+      args:
+        executable: powershell.exe
+
+    - name: Ensure Windows Update is enabled
+      win_service:
+        name: wuauserv
+        state: started
+        start_mode: auto
+
+    - name: Ensure unnecessary services are disabled
+      win_service:
+        name: '{{ item }}'
+        state: stopped
+        start_mode: disabled
+      loop:
+        - Fax
+        - WMPNetworkSvc
+
+    - name: Ensure necessary features are installed
+      win_feature:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - NET-Framework-45-Core
+        - PowerShell-V2
+
+    - name: Ensure unnecessary features are uninstalled
+      win_feature:
+        name: '{{ item }}'
+        state: absent
+      loop:
+        - Telnet-Client
+        - TFTP-Client
+
+    - name: Ensure password policy is set
+      win_shell: |
+        secedit /export /cfg c:\secpol.cfg
+        (gc C:\secpol.cfg).replace("PasswordComplexity = 0", "PasswordComplexity = 1") | Out-File C:\secpol.cfg
+        secedit /configure /db c:\windows\security\local.sdb /cfg c:\secpol.cfg /areas SECURITYPOLICY
+        rm -force c:\secpol.cfg -confirm:$false
+      args:
+        executable: powershell.exe
+...

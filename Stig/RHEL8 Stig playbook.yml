@@ -1,0 +1,50 @@
+---
+- hosts: rhel8
+  become: yes
+  tasks:
+    - name: Ensure SELinux is enforcing
+      selinux:
+        policy: targeted
+        state: enforcing
+
+    - name: Ensure unnecessary services are stopped
+      systemd:
+        name: '{{ item }}'
+        state: stopped
+        enabled: no
+      loop:
+        - avahi-daemon
+        - cups
+        - nfslock
+        - rpcgssd
+        - rpcbind
+        - rpcidmapd
+        - rpcsvcgssd
+
+    - name: Ensure necessary services are started
+      systemd:
+        name: '{{ item }}'
+        state: started
+        enabled: yes
+      loop:
+        - auditd
+        - crond
+        - sshd
+
+    - name: Ensure firewalld is running and enabled
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: Ensure password policy is set
+      pamd:
+        name: password-auth
+        type: password
+        control: sufficient
+        module_path: pam_pwquality.so
+        new_type: password
+        new_control: requisite
+        new_module_path: pam_pwquality.so
+        module_arguments: 'retry=3 minlen=14 dcredit=-1 ucredit=-1 ocredit=-1 lcredit=-1'
+...

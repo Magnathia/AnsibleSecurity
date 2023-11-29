@@ -1,0 +1,10 @@
+---
+- name: Install GitLab on Kubernetes
+  hosts: localhost
+  tasks:
+    - name: Apply GitLab deployment
+      kubernetes.core.k8s:
+        api_key: "your-api-key"
+        api_version: "apps/v1"
+        resource_definition: "{{ lookup('file', 'gitlab-deployment.yaml') }}"
+        state: present
